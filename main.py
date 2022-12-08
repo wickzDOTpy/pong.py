@@ -2,37 +2,41 @@ import sys
 import random
 import pygame as pg
 
+pg.mixer.pre_init(44100, -16, 2, 512)
 pg.init()
-clock: pg.time = pg.time.Clock()
+clock = pg.time.Clock()
 
 screen_width: int = 1280
 screen_height: int = 960
-screen: pg.display = pg.display.set_mode((screen_width, screen_height))
+screen = pg.display.set_mode((screen_width, screen_height))
 pg.display.set_caption('The Pong Game')
 
 # Game Rectangles
 ball: pg.Rect = pg.Rect(screen_width / 2 - 15, screen_height / 2 - 15, 30, 30)  # center ball at middle of screen
 player: pg.Rect = pg.Rect(screen_width - 20, screen_height / 2 - 70, 10, 140)
-opponent_length: int = 120
-opponent: pg.Rect = pg.Rect(10, screen_height / 2 - 70, 10, opponent_length)
+opponent: pg.Rect = pg.Rect(10, screen_height / 2 - 70, 10, 120)
 
 # game variables
 ball_speed_x: int = 7 * random.choice((1, -1))
 ball_speed_y: int = 7 * random.choice((1, -1))
 player_speed: int = 0
-opponent_speed: int = 19
-init_score_time: bool or int = True
+opponent_speed: int = 25
+init_score_time: bool = True
 difficulty: int = 1
 
 # score variables
 player_score: int = 0
 opponent_score: int = 0
-game_font: pg.font = pg.font.Font("freesansbold.ttf", 32)
+game_font = pg.font.Font("freesansbold.ttf", 32)
 
 # color variables
 bg_color: pg.Color = pg.Color('grey12')
 red: pg.Color = pg.Color('red')
 light_grey: tuple = (200, 200, 200)
+
+# sound
+pong_sound = pg.mixer.Sound('pong.wav')
+score_sound = pg.mixer.Sound('score.wav')
 
 
 def collision_vertical(entity: pg.Rect):
@@ -51,21 +55,43 @@ def ball_animation():
 
     # collision ball - screen
     if ball.top <= 0 or ball.bottom >= screen_height:  # vertical (y) axis
+        pg.mixer.Sound.play(pong_sound)
         ball_speed_y *= -1
 
+    # player score
     elif ball.left <= 0:  # horizontal (x) axis
+        pg.mixer.Sound.play(score_sound)
         init_score_time = pg.time.get_ticks()  # calculate time since pygame.init() was executed | executed only once
         set_score('left')
 
+    # opponent score
     elif ball.right >= screen_width:  # horizontal (x) axis
+        pg.mixer.Sound.play(score_sound)
         init_score_time = pg.time.get_ticks()
         set_score('right')
 
     # collision ball - players + difficulty change in ball movement & opponent speed
-    if ball.colliderect(player) or ball.colliderect(opponent):
-        ball_speed_x *= -1
+    if ball.colliderect(player) and ball_speed_x > 0:
+        pg.mixer.Sound.play(pong_sound)
         ball_speed_increase()
-        opponent_ai_difficulty_increase()
+        # opponent_ai_difficulty_increase()
+        if abs(ball.right - player.left) < 10:
+            ball_speed_x *= -1
+        elif abs(ball.bottom - player.top) < 10 and ball_speed_y > 0:
+            ball_speed_y *= -1
+        elif abs(ball.top - player.bottom) < 10 and ball_speed_y < 0:
+            ball_speed_y *= -1
+
+    elif ball.colliderect(opponent) and ball_speed_x < 0:
+        pg.mixer.Sound.play(pong_sound)
+        ball_speed_increase()
+        # opponent_ai_difficulty_increase()
+        if abs(ball.left - opponent.right) < 10:
+            ball_speed_x *= -1
+        elif abs(ball.bottom - opponent.top) < 10 and ball_speed_y > 0:
+            ball_speed_y *= -1
+        elif abs(ball.top - opponent.bottom) < 10 and ball_speed_y < 0:
+            ball_speed_y *= -1
 
 
 def ball_speed_increase():
@@ -82,8 +108,7 @@ def ball_speed_increase():
 
 
 def ball_restart():
-    global ball_speed_y, ball_speed_x, player_score, opponent_score, init_score_time, difficulty, opponent_speed, \
-            opponent_length
+    global ball_speed_y, ball_speed_x, player_score, opponent_score, init_score_time, difficulty, opponent_speed
 
     current_time = pg.time.get_ticks()
     ball.center = (screen_width / 2, screen_height / 2)
@@ -103,7 +128,7 @@ def ball_restart():
         init_score_time = False
         difficulty = 1
         opponent_speed = 23
-        opponent_length = 120
+        # opponent_length = 120
 
 
 def set_score(score_side: str):
@@ -126,20 +151,20 @@ def opponent_ai():
 
 
 def opponent_ai_difficulty_increase():
-    global opponent_speed, opponent_length
+    global opponent_speed
     # increasing length doesn't work for now
 
     if opponent_speed < 40:
         opponent_speed *= 1.1
-        opponent_length *= 1.2
+        # opponent_length *= 1.2
 
     elif opponent_speed < 48:
         opponent_speed *= 1.06
-        opponent_length *= 1.08
+        # opponent_length *= 1.08
 
     else:
         opponent_speed = 48
-        opponent_length *= 1.04
+        # opponent_length *= 1.04
 
 
 while True:
